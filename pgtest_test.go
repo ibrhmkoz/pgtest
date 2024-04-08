@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	dsu DesiredStateURL = "file://pkg/pgtest/schema.sql"
+	dsu DesiredStateURL = "file://schema.sql"
 )
 
 func TestPGTest(t *testing.T) {
