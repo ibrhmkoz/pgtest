@@ -1,4 +1,4 @@
-module pgtest
+module github.com/ibrhmkoz/pgtest
 
 go 1.22
 
