@@ -23,7 +23,8 @@ type Option func(*DBOptions)
 // DBOptions holds the configuration options for the database.
 type DBOptions struct {
 	referentialIntegrityDisabled bool
-	version                      string
+	version                      Version
+	url                          DesiredStateURL
 }
 
 // WithReferentialIntegrityDisabled is an option that disables referential integrity checks in the test database.
@@ -49,7 +50,13 @@ func WithVersion(v Version) Option {
 
 type DesiredStateURL = string
 
-func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
+func WithDesiredState(url DesiredStateURL) Option {
+	return func(opts *DBOptions) {
+		opts.url = url
+	}
+}
+
+func Run(t *testing.T, sut SUT, opts ...Option) {
 	// Since integration tests are run in distinct containers, they can be run in parallel.
 	t.Parallel()
 
@@ -79,9 +86,11 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 		t.Fatal(err)
 	}
 
-	err = reconcileDB(cs, dsu)
-	if err != nil {
-		t.Fatal(err)
+	if o.url != "" {
+		err = reconcileDB(cs, o.url)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	config, err := pgxpool.ParseConfig(cs)

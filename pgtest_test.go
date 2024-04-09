@@ -13,7 +13,6 @@ const (
 
 func TestPGTest(t *testing.T) {
 	Run(t,
-		dsu,
 		func(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 			// Given
 			_, err := pool.Exec(ctx, `INSERT INTO clinics (id, name, email) VALUES ($1, $2, $3)`, "test-clinic-uuid", "Test Clinic", "test@example.com")
@@ -29,33 +28,33 @@ func TestPGTest(t *testing.T) {
 			require.Equal(t, "Test Clinic", name)
 			require.Equal(t, "test@example.com", email)
 		},
+		WithDesiredState(dsu),
 	)
 }
 
 func TestWithReferentialIntegrityEnabled(t *testing.T) {
 	Run(t,
-		dsu,
 		func(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 			_, err := pool.Exec(ctx, `INSERT INTO doctors (id, clinic_id) VALUES ($1, $2)`, "test-doctor-uuid", "non-existent-clinic-uuid")
 			require.Error(t, err)
 		},
+		WithDesiredState(dsu),
 	)
 }
 
 func TestWithReferentialIntegrityDisabled(t *testing.T) {
 	Run(t,
-		dsu,
 		func(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 			_, err := pool.Exec(ctx, `INSERT INTO doctors (id, clinic_id) VALUES ($1, $2)`, "test-doctor-uuid", "non-existent-clinic-uuid")
 			require.NoError(t, err)
 		},
 		WithReferentialIntegrityDisabled(),
+		WithDesiredState(dsu),
 	)
 }
 
 func TestWithVersion(t *testing.T) {
 	Run(t,
-		dsu,
 		func(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 			// Given
 			_, err := pool.Exec(ctx, `INSERT INTO clinics (id, name, email) VALUES ($1, $2, $3)`, "test-clinic-uuid", "Test Clinic", "test@example.com")
@@ -72,5 +71,6 @@ func TestWithVersion(t *testing.T) {
 			require.Equal(t, "test@example.com", email)
 		},
 		WithVersion("14"),
+		WithDesiredState(dsu),
 	)
 }
