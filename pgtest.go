@@ -22,8 +22,8 @@ type Option func(*DBOptions)
 
 // DBOptions holds the configuration options for the database.
 type DBOptions struct {
-	ReferentialIntegrityDisabled bool
-	Version                      string
+	referentialIntegrityDisabled bool
+	version                      string
 }
 
 // WithReferentialIntegrityDisabled is an option that disables referential integrity checks in the test database.
@@ -35,7 +35,7 @@ type DBOptions struct {
 // behavior without being burdened by the overhead of setting up the entire referential integrity chain.
 func WithReferentialIntegrityDisabled() Option {
 	return func(opts *DBOptions) {
-		opts.ReferentialIntegrityDisabled = true
+		opts.referentialIntegrityDisabled = true
 	}
 }
 
@@ -43,7 +43,7 @@ type Version = string
 
 func WithVersion(v Version) Option {
 	return func(opts *DBOptions) {
-		opts.Version = v
+		opts.version = v
 	}
 }
 
@@ -54,7 +54,7 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 	t.Parallel()
 
 	o := &DBOptions{
-		Version: "latest",
+		version: "latest",
 	}
 
 	for _, opt := range opts {
@@ -63,7 +63,7 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 
 	ctx := context.Background()
 
-	pc, err := spinContainer(ctx, o.Version)
+	pc, err := spinContainer(ctx, o.version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,9 +88,9 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 		t.Fatal(err)
 	}
 
-	if o.ReferentialIntegrityDisabled {
+	if o.referentialIntegrityDisabled {
 		if err := disableReferentialIntegrity(ctx, pool); err != nil {
-			log.Fatalf("failed to disable referential integrity: %v", err)
+			t.Fatalf("failed to disable referential integrity: %v", err)
 		}
 	}
 
@@ -98,7 +98,7 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 
 	defer func() {
 		if err := pc.Terminate(ctx); err != nil {
-			log.Fatalf("failed to terminate container: %s", err)
+			t.Fatalf("failed to terminate container: %s", err)
 		}
 	}()
 }
@@ -141,10 +141,6 @@ func reconcileDB(cs ConnectionString, dsu DesiredStateURL) (err error) {
 		DevURL: "docker://postgres",
 		To:     dsu,
 	})
-
-	if err != nil {
-		log.Fatalf("failed to apply migrations: %v", err)
-	}
 
 	return err
 }
