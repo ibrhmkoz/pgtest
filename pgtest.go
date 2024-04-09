@@ -68,6 +68,12 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 		t.Fatal(err)
 	}
 
+	t.Cleanup(func() {
+		if err := pc.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
+	})
+
 	cs, err := pc.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		t.Fatal(err)
@@ -95,12 +101,6 @@ func Run(t *testing.T, dsu DesiredStateURL, sut SUT, opts ...Option) {
 	}
 
 	sut(t, ctx, pool)
-
-	defer func() {
-		if err := pc.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}()
 }
 
 func spinContainer(ctx context.Context, version string) (*postgres.PostgresContainer, error) {
