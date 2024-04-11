@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-type SUT func(*testing.T, context.Context, *pgxpool.Pool)
-
 type Option func(*DBOptions)
 
 // DBOptions holds the configuration options for the database.
@@ -56,9 +54,11 @@ func WithDesiredState(url DesiredStateURL) Option {
 	}
 }
 
-func Run(t *testing.T, sut SUT, opts ...Option) {
+func Run(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 	// Since integration tests are run in distinct containers, they can be run in parallel.
 	t.Parallel()
+
+	t.Helper()
 
 	o := &DBOptions{
 		version: "latest",
@@ -67,8 +67,6 @@ func Run(t *testing.T, sut SUT, opts ...Option) {
 	for _, opt := range opts {
 		opt(o)
 	}
-
-	ctx := context.Background()
 
 	pc, err := spinContainer(ctx, o.version)
 	if err != nil {
@@ -103,13 +101,17 @@ func Run(t *testing.T, sut SUT, opts ...Option) {
 		t.Fatal(err)
 	}
 
+	t.Cleanup(func() {
+		pool.Close()
+	})
+
 	if o.referentialIntegrityDisabled {
 		if err := disableReferentialIntegrity(ctx, pool); err != nil {
 			t.Fatalf("failed to disable referential integrity: %v", err)
 		}
 	}
 
-	sut(t, ctx, pool)
+	return pool
 }
 
 func spinContainer(ctx context.Context, version string) (*postgres.PostgresContainer, error) {
