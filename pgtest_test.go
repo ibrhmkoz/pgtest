@@ -12,7 +12,7 @@ const (
 
 func TestPGTest(t *testing.T) {
 	ctx := context.Background()
-	pool := Run(t, ctx, WithDesiredState(dsu))
+	pool := New(t, ctx, WithDesiredState(dsu))
 
 	// Given
 	_, err := pool.Exec(ctx, `INSERT INTO clinics (id, name, email) VALUES ($1, $2, $3)`, "test-clinic-uuid", "Test Clinic", "test@example.com")
@@ -31,7 +31,7 @@ func TestPGTest(t *testing.T) {
 
 func TestWithReferentialIntegrityEnabled(t *testing.T) {
 	ctx := context.Background()
-	pool := Run(t, ctx, WithDesiredState(dsu))
+	pool := New(t, ctx, WithDesiredState(dsu))
 
 	_, err := pool.Exec(ctx, `INSERT INTO doctors (id, clinic_id) VALUES ($1, $2)`, "test-doctor-uuid", "non-existent-clinic-uuid")
 	require.Error(t, err)
@@ -39,7 +39,7 @@ func TestWithReferentialIntegrityEnabled(t *testing.T) {
 
 func TestWithReferentialIntegrityDisabled(t *testing.T) {
 	ctx := context.Background()
-	pool := Run(t, ctx,
+	pool := New(t, ctx,
 		WithReferentialIntegrityDisabled(),
 		WithDesiredState(dsu),
 	)
@@ -50,7 +50,7 @@ func TestWithReferentialIntegrityDisabled(t *testing.T) {
 
 func TestWithVersion(t *testing.T) {
 	ctx := context.Background()
-	pool := Run(t, ctx,
+	pool := New(t, ctx,
 		WithVersion("14"),
 		WithDesiredState(dsu),
 	)

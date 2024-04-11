@@ -54,7 +54,7 @@ func WithDesiredState(url DesiredStateURL) Option {
 	}
 }
 
-func Run(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
+func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 	// Since integration tests are run in distinct containers, they can be run in parallel.
 	t.Parallel()
 
