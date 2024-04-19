@@ -19,16 +19,18 @@ go get github.com/ibrhmkoz/pgtest
 ## Usage
 
 ```go
-import "github.com/ibrhmkoz/pgtest"
+import (
+"context"
+"testing"
+"github.com/ibrhmkoz/pgtest"
+)
 
 func TestMyFunction(t *testing.T) {
-    pgtest.Run(t,
-        "file://path/to/schema.sql",
-        func(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
-            // Test code here
-            // Use the pool to interact with the database
-        },
-    )
+ctx := context.Background()
+pool := pgtest.New(t, ctx, pgtest.WithDesiredState("file://path/to/schema.sql"))
+
+// Test code here
+// Use the pool to interact with the database
 }
 ```
 
@@ -38,6 +40,42 @@ func TestMyFunction(t *testing.T) {
 
 - `WithReferentialIntegrityDisabled()`: Disables referential integrity checks in the test database, allowing for simplified test setup when dealing with complex referential integrity chains.
 - `WithVersion(version string)`: Specifies the desired PostgreSQL version to use for testing. Defaults to "latest" if not provided.
+- `WithDesiredState(url string)`: Specifies the desired state URL for the database schema. The URL can point to a SQL file or a directory consisting of SQL files.
+
+## Example
+
+```go
+package pgtest
+
+import (
+    "context"
+    "github.com/stretchr/testify/require"
+    "testing"
+)
+
+const (
+    url pgtest.DesiredStateURL = "file://schema.sql"
+)
+
+func TestPGTest(t *testing.T) {
+    ctx := context.Background()
+    pool := pgtest.New(t, ctx, pgtest.WithDesiredState(url))
+
+    // Given
+    _, err := pool.Exec(ctx, `INSERT INTO clinics (id, name, email) VALUES ($1, $2, $3)`, "test-clinic-uuid", "Test Clinic", "test@example.com")
+    require.NoError(t, err)
+
+    // When
+    var name string
+    var email string
+    err = pool.QueryRow(ctx, `SELECT name, email FROM clinics`).Scan(&name, &email)
+
+    // Then
+    require.NoError(t, err)
+    require.Equal(t, "Test Clinic", name)
+    require.Equal(t, "test@example.com", email)
+}
+```
 
 ## Contributing
 

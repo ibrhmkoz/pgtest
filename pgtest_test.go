@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	dsu DesiredStateURL = "file://schema.sql"
+	url DesiredStateURL = "file://schema.sql"
 )
 
 func TestPGTest(t *testing.T) {
 	ctx := context.Background()
-	pool := New(t, ctx, WithDesiredState(dsu))
+	pool := New(t, ctx, WithDesiredState(url))
 
 	// Given
 	_, err := pool.Exec(ctx, `INSERT INTO clinics (id, name, email) VALUES ($1, $2, $3)`, "test-clinic-uuid", "Test Clinic", "test@example.com")
@@ -31,7 +31,7 @@ func TestPGTest(t *testing.T) {
 
 func TestWithReferentialIntegrityEnabled(t *testing.T) {
 	ctx := context.Background()
-	pool := New(t, ctx, WithDesiredState(dsu))
+	pool := New(t, ctx, WithDesiredState(url))
 
 	_, err := pool.Exec(ctx, `INSERT INTO doctors (id, clinic_id) VALUES ($1, $2)`, "test-doctor-uuid", "non-existent-clinic-uuid")
 	require.Error(t, err)
@@ -41,7 +41,7 @@ func TestWithReferentialIntegrityDisabled(t *testing.T) {
 	ctx := context.Background()
 	pool := New(t, ctx,
 		WithReferentialIntegrityDisabled(),
-		WithDesiredState(dsu),
+		WithDesiredState(url),
 	)
 
 	_, err := pool.Exec(ctx, `INSERT INTO doctors (id, clinic_id) VALUES ($1, $2)`, "test-doctor-uuid", "non-existent-clinic-uuid")
@@ -52,7 +52,7 @@ func TestWithVersion(t *testing.T) {
 	ctx := context.Background()
 	pool := New(t, ctx,
 		WithVersion("14"),
-		WithDesiredState(dsu),
+		WithDesiredState(url),
 	)
 
 	// Given
