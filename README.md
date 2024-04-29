@@ -20,9 +20,9 @@ go get github.com/ibrhmkoz/pgtest
 
 ```go
 import (
-"context"
-"testing"
-"github.com/ibrhmkoz/pgtest"
+    "context"
+    "testing"
+    "github.com/ibrhmkoz/pgtest"
 )
 
 func TestMyFunction(t *testing.T) {
