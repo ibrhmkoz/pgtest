@@ -26,11 +26,11 @@ import (
 )
 
 func TestMyFunction(t *testing.T) {
-ctx := context.Background()
-pool := pgtest.New(t, ctx, pgtest.WithDesiredState("file://path/to/schema.sql"))
+    ctx := context.Background()
+    pool := pgtest.New(t, ctx, pgtest.WithDesiredState("file://path/to/schema.sql"))
 
-// Test code here
-// Use the pool to interact with the database
+    // Test code here
+    // Use the pool to interact with the database
 }
 ```
 
