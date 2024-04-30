@@ -50,6 +50,7 @@ func WithVersion(v Version) Option {
 // DesiredStateURL points to either a file or a dir comprising sql files.
 type DesiredStateURL = string
 
+// WithDesiredState allows initializing test db with a desired state.
 func WithDesiredState(url DesiredStateURL) Option {
 	return func(opts *dbOptions) {
 		opts.url = url
