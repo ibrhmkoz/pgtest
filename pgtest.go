@@ -96,12 +96,8 @@ func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 		}
 	}
 
-	config, err := pgxpool.ParseConfig(cs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pool, err := pgxpool.New(ctx, cs)
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
 	}
