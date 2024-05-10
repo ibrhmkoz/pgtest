@@ -16,10 +16,9 @@ import (
 	"time"
 )
 
-type Option func(*DBOptions)
+type Option func(*dbOptions)
 
-// DBOptions holds the configuration options for the database.
-type DBOptions struct {
+type dbOptions struct {
 	referentialIntegrityDisabled bool
 	version                      Version
 	url                          DesiredStateURL
@@ -33,34 +32,40 @@ type DBOptions struct {
 // By disabling referential integrity checks, you can simplify the test setup and focus on testing the desired
 // behavior without being burdened by the overhead of setting up the entire referential integrity chain.
 func WithReferentialIntegrityDisabled() Option {
-	return func(opts *DBOptions) {
+	return func(opts *dbOptions) {
 		opts.referentialIntegrityDisabled = true
 	}
 }
 
+// Version specifies postgres version.
 type Version = string
 
+// WithVersion allows specifying which version of postgres to use.
 func WithVersion(v Version) Option {
-	return func(opts *DBOptions) {
+	return func(opts *dbOptions) {
 		opts.version = v
 	}
 }
 
+// DesiredStateURL points to either a file or a dir comprising sql files.
 type DesiredStateURL = string
 
+// WithDesiredState allows initializing test db with a desired state.
 func WithDesiredState(url DesiredStateURL) Option {
-	return func(opts *DBOptions) {
+	return func(opts *dbOptions) {
 		opts.url = url
 	}
 }
 
+// New prepares a brand-new postgres instance by getting it to the intended state.
+// It delivers a pgx pool through which the client can interact with the test DB.
 func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 	// Since integration tests are run in distinct containers, they can be run in parallel.
 	t.Parallel()
 
 	t.Helper()
 
-	o := &DBOptions{
+	o := &dbOptions{
 		version: "latest",
 	}
 
@@ -91,12 +96,8 @@ func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 		}
 	}
 
-	config, err := pgxpool.ParseConfig(cs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pool, err := pgxpool.New(ctx, cs)
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,9 +135,9 @@ func spinContainer(ctx context.Context, version string) (*postgres.PostgresConta
 	return pc, err
 }
 
-type ConnectionString = string
+type connectionString = string
 
-func reconcileDB(cs ConnectionString, dsu DesiredStateURL) (err error) {
+func reconcileDB(cs connectionString, dsu DesiredStateURL) (err error) {
 	r, err := git.Root()
 	if err != nil {
 		return err
@@ -156,7 +157,7 @@ func reconcileDB(cs ConnectionString, dsu DesiredStateURL) (err error) {
 	return err
 }
 
-type DropConstraintQuery = string
+type dropConstraintQuery = string
 
 func disableReferentialIntegrity(ctx context.Context, pool *pgxpool.Pool) (err error) {
 	tx, err := pool.Begin(ctx)
@@ -183,7 +184,7 @@ func disableReferentialIntegrity(ctx context.Context, pool *pgxpool.Pool) (err e
 	}
 	defer rows.Close()
 
-	var d []DropConstraintQuery
+	var d []dropConstraintQuery
 	for rows.Next() {
 		var cmd string
 		if err := rows.Scan(&cmd); err != nil {
