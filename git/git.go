@@ -5,7 +5,9 @@ import (
 	"strings"
 )
 
-func Root() (string, error) {
+type AbsolutePath = string
+
+func Root() (AbsolutePath, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 
 	o, err := cmd.Output()

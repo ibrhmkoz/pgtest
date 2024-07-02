@@ -3,8 +3,13 @@ package pgtest
 import (
 	"ariga.io/atlas-go-sdk/atlasexec"
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/golang-migrate/migrate/v4"
+	pgmigrate "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ibrhmkoz/pgtest/git"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +23,18 @@ import (
 
 type Option func(*dbOptions)
 
+type Migrator int
+
+const (
+	MigratorAtlas Migrator = iota
+	MigratorGoMigrator
+)
+
 type dbOptions struct {
 	referentialIntegrityDisabled bool
 	version                      Version
 	url                          DesiredStateURL
+	migrator                     Migrator
 }
 
 // WithReferentialIntegrityDisabled is an option that disables referential integrity checks in the test database.
@@ -57,6 +70,13 @@ func WithDesiredState(url DesiredStateURL) Option {
 	}
 }
 
+// WithMigrator allows specifying which migrator to use.
+func WithMigrator(m Migrator) Option {
+	return func(opts *dbOptions) {
+		opts.migrator = m
+	}
+}
+
 // New prepares a brand-new postgres instance by getting it to the intended state.
 // It delivers a pgx pool through which the client can interact with the test DB.
 func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
@@ -89,8 +109,18 @@ func New(t *testing.T, ctx context.Context, opts ...Option) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 
+	root, err := git.Root()
+
 	if o.url != "" {
-		err = reconcileDB(cs, o.url)
+		switch o.migrator {
+		case MigratorAtlas:
+			err = atlasMigrate(root, cs, o.url)
+		case MigratorGoMigrator:
+			err = goMigratorMigrate(cs, o.url)
+		default:
+			t.Fatal("unreachable")
+		}
+
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -137,13 +167,8 @@ func spinContainer(ctx context.Context, version string) (*postgres.PostgresConta
 
 type connectionString = string
 
-func reconcileDB(cs connectionString, dsu DesiredStateURL) (err error) {
-	r, err := git.Root()
-	if err != nil {
-		return err
-	}
-
-	client, err := atlasexec.NewClient(r, "atlas")
+func atlasMigrate(root git.AbsolutePath, cs connectionString, dsu DesiredStateURL) (err error) {
+	client, err := atlasexec.NewClient(root, "atlas")
 	if err != nil {
 		return fmt.Errorf("failed to initialize client: %v", err)
 	}
@@ -155,6 +180,34 @@ func reconcileDB(cs connectionString, dsu DesiredStateURL) (err error) {
 	})
 
 	return err
+}
+
+func goMigratorMigrate(cs connectionString, dsu DesiredStateURL) (err error) {
+	db, err := sql.Open("postgres", cs)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %v", err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+	}(db)
+
+	driver, err := pgmigrate.WithInstance(db, &pgmigrate.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create postgres driver: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		dsu,
+		"postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %v", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run migrations: %v", err)
+	}
+
+	return nil
 }
 
 type dropConstraintQuery = string
@@ -173,11 +226,11 @@ func disableReferentialIntegrity(ctx context.Context, pool *pgxpool.Pool) (err e
 
 	// Generate and execute commands to drop all foreign key constraints
 	rows, err := tx.Query(ctx, `
-        SELECT 'ALTER TABLE ' || nspname || '."' || relname || '" DROP CONSTRAINT "' || conname || '";'
-        FROM pg_constraint
-        INNER JOIN pg_class ON conrelid = pg_class.oid
-        INNER JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
-        WHERE contype = 'f';
+        select 'alter table ' || nspname || '."' || relname || '" drop constraint "' || conname || '";'
+        from pg_constraint
+        inner join pg_class on conrelid = pg_class.oid
+        inner join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+        where contype = 'f';
     `)
 	if err != nil {
 		return err
